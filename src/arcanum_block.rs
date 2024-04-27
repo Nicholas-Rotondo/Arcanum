@@ -1,41 +1,55 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sha2::{Sha256, Digest};
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
-#[derive(Serialize, Deserialize)]
-struct ArcanumBlock {
-    timestamp: u64,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ArcanumBlock {
+    timestamp: DateTime<Utc>,
     hash: String,
     previous_hash: String,
     nonce: u64,
     id: i64,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct JSONHash {
+    timestamp: DateTime<Utc>,
+    previous_hash: String,
+    nonce: u64,
+    id: i64,
+}
+
 struct ArcanumChain {
-    chain: vec![ArcanumBlock]
+    chain: Vec<ArcanumBlock>
 }
 
 impl ArcanumBlock {
+    pub fn new(hash: String, previous_hash: String, nonce: u64, id: i64) -> ArcanumBlock {
+        let now = Utc::now();
 
-    // See standard on intializing
-    fn new(timestamp: i64, hash: String, previous_hash: String, nonce: u64, id: i64) -> ArcanumBlock {
+        let hash = Self::create_hash(&now, &previous_hash, nonce, id).unwrap();
         let block = ArcanumBlock {
-            timestamp: UTC::now(),
-            hash: create_hash(),
+            timestamp: now,
+            hash,
             previous_hash,
             nonce,
             id,
         };
+
+        return block;
     }
 
-    fn create_hash() -> String {
+    fn create_hash(timestamp: &DateTime<Utc>, previous_hash: &String, nonce: u64, id: i64) -> Result<String, serde_json::Error> {
         let mut hasher = Sha256::new();
-        let data = b"Hello world!";
-        hasher.update(data);
-         // `update` can be called repeatedly and is generic over `AsRef<[u8]>`
-        hasher.update("String data");
-        // Note that calling `finalize()` consumes hasher
+        let json_hash = JSONHash {
+            timestamp: *timestamp,
+            previous_hash: previous_hash.clone(),
+            nonce,
+            id
+        };
+        let serialized = serde_json::to_string(&json_hash)?;
+        let mut hasher = Sha256::new();
+        hasher.update(serialized);
         let hash = hasher.finalize();
-        println!("Binary hash: {:?}", hash)
+        Ok(format!("{:x}", hash))
     }
 }
